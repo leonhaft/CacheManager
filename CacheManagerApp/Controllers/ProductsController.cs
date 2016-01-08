@@ -118,7 +118,15 @@ namespace CacheManagerApp.Controllers
             if (ModelState.IsValid)
             {
                 db.Entry(product).State = EntityState.Modified;
+                var productInfo = new ProductDto
+                {
+                    ProductId = product.ProductId,
+                    Name = product.Name,
+                    Price = product.ListPrice
+                };
                 await db.SaveChangesAsync();
+                Cache.Add($"Product:{product.ProductId}", productInfo);
+
                 return RedirectToAction("Index");
             }
             return View(product);
