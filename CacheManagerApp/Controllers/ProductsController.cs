@@ -9,6 +9,7 @@ using System.Web;
 using System.Web.Mvc;
 using CacheManagerApp.Models.EntityframeWork;
 using CacheManager.Core;
+using CacheManager.Core.Internal;
 using CacheManager.Serialization.Json;
 using CacheManagerApp.Models;
 using NLog;
@@ -19,18 +20,36 @@ namespace CacheManagerApp.Controllers
     {
         private AdventureModel db = new AdventureModel();
         private static readonly ICacheManager<object> Cache;
+        private static readonly ICacheManager<int> CacheManager;
         private readonly ILogger Log = LogManager.GetLogger("Product");
 
         static ProductsController()
         {
             Cache = CacheFactory.Build("Product", settings => settings
             .WithSystemRuntimeCacheHandle("runtimeCache")
+            
             .And
             .WithSerializer(typeof(JsonCacheSerializer))
             .WithRedisConfiguration("redisConfig", config =>
                 config.WithEndpoint("localhost", 6379))
             .WithRedisBackPlate("redisConfig")
             .WithRedisCacheHandle("redisConfig", true));
+
+            //Cache = CacheFactory.Build("Product", settings => settings
+            //    .WithSystemRuntimeCacheHandle("runtimeCache", true)
+            //    .And
+            //    .WithSerializer(typeof(JsonCacheSerializer))
+            //    .WithBackPlate<CacheBackPlate>("runtimeCache"));
+
+
+            CacheManager = CacheFactory.Build<int>("Product", settings => settings
+           .WithSystemRuntimeCacheHandle("runtimeCache")
+           .And
+           .WithSerializer(typeof(JsonCacheSerializer))
+           .WithRedisConfiguration("redisConfig", config =>
+               config.WithEndpoint("localhost", 6379))
+           .WithRedisBackPlate("redisConfig")
+           .WithRedisCacheHandle("redisConfig", true));
         }
         // GET: Products
         public async Task<ActionResult> Index()
@@ -60,6 +79,8 @@ namespace CacheManagerApp.Controllers
                     Price = product.ListPrice
                 };
                 Cache.Add($"Product:{id.Value}", productInfo);
+                CacheManager.Add($"Seller:{id.Value}", 100);
+                CacheManager.Update($"Seller:{id.Value}", item => item + 2);
                 Log.Info("数据库中获取");
             }
             else
@@ -125,8 +146,9 @@ namespace CacheManagerApp.Controllers
                     Price = product.ListPrice
                 };
                 await db.SaveChangesAsync();
-                Cache.Add($"Product:{product.ProductId}", productInfo);
-
+                //Cache.Add($"Product:{product.ProductId}", productInfo);
+                //Cache.AddOrUpdate($"Product:{product.ProductId}", productInfo, item => productInfo);
+                Cache.Remove($"Product:{product.ProductId}");
                 return RedirectToAction("Index");
             }
             return View(product);
